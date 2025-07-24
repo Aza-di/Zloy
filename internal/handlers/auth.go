@@ -27,8 +27,10 @@ var (
 )
 
 type RegisterRequest struct {
-	Login    string `json:"login" binding:"required,min=3,max=32"`
-	Password string `json:"password" binding:"required,min=6,max=64"`
+	Login         string `json:"login" binding:"required,min=3,max=32"`
+	Password      string `json:"password" binding:"required,min=6,max=64"`
+	CaptchaID     string `json:"captcha_id" binding:"required"`
+	CaptchaAnswer string `json:"captcha_answer" binding:"required"`
 }
 
 type AuthResponse struct {
@@ -41,6 +43,19 @@ func Register(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
+
+	// Проверка CAPTCHA
+	captchaMutex.Lock()
+	answer, ok := captchaStore[req.CaptchaID]
+	captchaMutex.Unlock()
+	if !ok || answer != req.CaptchaAnswer {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid captcha"})
+		return
+	}
+	// После успешной проверки удаляем капчу
+	captchaMutex.Lock()
+	delete(captchaStore, req.CaptchaID)
+	captchaMutex.Unlock()
 
 	pg := c.MustGet("pg").(*gorm.DB)
 
@@ -120,6 +135,7 @@ func CaptchaHandler(c *gin.Context) {
 	// В реальной задаче используйте freetype или go-captcha для отрисовки цифр
 
 	id := strconv.FormatInt(time.Now().UnixNano(), 10)
+	// log.Printf("CAPTCHA id=%s, answer=%s", id, answer) // ВРЕМЕННО: выводим правильный ответ в лог для теста
 	captchaMutex.Lock()
 	captchaStore[id] = answer
 	captchaMutex.Unlock()
