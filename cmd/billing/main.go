@@ -37,6 +37,13 @@ func main() {
 
 	r := gin.Default()
 
+	// Корневой маршрут
+	r.GET("/", func(c *gin.Context) {
+		c.String(200, "Hello, API!")
+	})
+
+	r.GET("/api/auth/captcha", handlers.CaptchaHandler)
+
 	// Передаём подключения к БД в middleware Gin
 	r.Use(func(c *gin.Context) {
 		c.Set("pg", pg)

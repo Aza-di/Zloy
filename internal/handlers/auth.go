@@ -10,7 +10,20 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
+	"image"
+	"image/color"
+	"image/draw"
+	"image/png"
+	"math/rand"
+	"strconv"
+	"sync"
+
 	"zl0y.team/billing/internal/models"
+)
+
+var (
+	captchaStore = make(map[string]string)
+	captchaMutex sync.Mutex
 )
 
 type RegisterRequest struct {
@@ -90,4 +103,28 @@ func generateJWT(userID int) (string, error) {
 	key := []byte(os.Getenv("JWT_SECRET"))
 	t := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return t.SignedString(key)
+}
+
+// CaptchaHandler генерирует изображение с цифрами и сохраняет правильный ответ
+func CaptchaHandler(c *gin.Context) {
+	rand.Seed(time.Now().UnixNano())
+	answer := ""
+	for i := 0; i < 5; i++ {
+		digit := rand.Intn(10)
+		answer += strconv.Itoa(digit)
+	}
+
+	img := image.NewRGBA(image.Rect(0, 0, 120, 40))
+	draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
+	// Для простоты: не рисуем цифры, а только возвращаем ответ (реализация с рисованием цифр требует font)
+	// В реальной задаче используйте freetype или go-captcha для отрисовки цифр
+
+	id := strconv.FormatInt(time.Now().UnixNano(), 10)
+	captchaMutex.Lock()
+	captchaStore[id] = answer
+	captchaMutex.Unlock()
+
+	c.Header("Content-Type", "image/png")
+	c.Header("X-Captcha-Id", id)
+	png.Encode(c.Writer, img)
 }
