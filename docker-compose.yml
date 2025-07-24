@@ -1,0 +1,35 @@
+version: '3.8'
+services:
+  billing:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - POSTGRES_DSN=host=postgres user=postgres password=postgres dbname=billing port=5432 sslmode=disable
+      - MONGO_URI=mongodb://mongo:27017
+      - JWT_SECRET=supersecretkey
+    depends_on:
+      - postgres
+      - mongo
+    command: ["/bin/sh", "-c", "until nc -z postgres 5432; do sleep 1; done; ./billing"]
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: billing
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  mongo:
+    image: mongo:6
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+volumes:
+  pgdata:
+  mongodata: 
